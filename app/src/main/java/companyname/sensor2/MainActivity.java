@@ -53,6 +53,10 @@ public class MainActivity extends AppCompatActivity {
     private float[] aval = new float[3];
     private float lval;
     private float[] mval = new float[3];
+    private float azimuth;
+    private float pitch;
+    private float roll;
+
     private boolean running = false;
 
     TextView time_text = null;
@@ -184,6 +188,7 @@ public class MainActivity extends AppCompatActivity {
             if (mstart_time == -1)
                 mstart_time = event.timestamp;
 
+
             mval[0] = event.values[0];
             mval[1] = event.values[1];
             mval[2] = event.values[2];
@@ -192,6 +197,22 @@ public class MainActivity extends AppCompatActivity {
             current_time = current_time / 1000000;
 
             time_text.setText(current_time + "ms");
+
+            if (aval != null && mval != null )
+            {
+                float R[] = new float[9];
+                float I[] = new float[9];
+
+                boolean works = SensorManager.getRotationMatrix(R, I, aval, mval);
+                if (works){
+                    float orientation[] = new float[3];
+                    SensorManager.getOrientation(R, orientation);
+                    azimuth = orientation[0];
+                    pitch = orientation[1];
+                    roll = orientation[2];
+
+                }
+            }
 
             try {
                 if (mBufferedWriter != null) {
@@ -205,7 +226,8 @@ public class MainActivity extends AppCompatActivity {
             }
             float mtime = (event.timestamp - mstart_time) / 1000000;
             if (sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD) {
-                mag_text.setText("Magnetic(MicroTesla) \n" + "time: " + mtime + "\nx: " + event.values[0] + "\ny: " + event.values[1] + "\nz: " + event.values[2]);
+                mag_text.setText("Magnetic(MicroTesla) \n" + "time: " + mtime + "\nx: " + event.values[0] + "\ny: " + event.values[1] + "\nz: " + event.values[2]
+                                + "\nazimuth:" + azimuth + "\n:roll:" + roll + "\n:pitch:" + pitch);
 
             }
         }
@@ -226,6 +248,7 @@ public class MainActivity extends AppCompatActivity {
             gval[2] = event.values[2];
             float current_time = (System.nanoTime() - time_start);
             current_time = current_time / 1000000;
+
 
             time_text.setText(current_time + "ms");
 
