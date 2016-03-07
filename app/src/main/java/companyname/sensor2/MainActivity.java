@@ -57,6 +57,11 @@ public class MainActivity extends AppCompatActivity {
     private float pitch;
     private float roll;
 
+    private float[] vOrientation = new float[3];
+
+    private Orientation orientation;
+
+
     private boolean running = false;
 
     TextView time_text = null;
@@ -129,6 +134,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        orientation.onResume();
         if (running) {
             mSensorManager.registerListener(aSensorEventListener, mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER), SensorManager.SENSOR_DELAY_FASTEST);
             mSensorManager.registerListener(mSensorEventListener, mSensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD), SensorManager.SENSOR_DELAY_FASTEST);
@@ -141,6 +147,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onPause() {
         super.onPause();
+        orientation.onPause();
         mSensorManager.unregisterListener(aSensorEventListener);
         mSensorManager.unregisterListener(mSensorEventListener);
         mSensorManager.unregisterListener(gSensorEventListener);
@@ -152,6 +159,8 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
+
+        orientation = new GyroscopeOrientation(this);
 
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
@@ -173,11 +182,15 @@ public class MainActivity extends AppCompatActivity {
         float current_time = (System.nanoTime() - time_start);
         current_time = current_time / 1000000;
 
+
+
         time_text.setText(current_time + "ms");
 
         button = (Button) findViewById(R.id.startstop_button);
         button.setText("record");
         mSensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
+
+
     }
     private SensorEventListener mSensorEventListener = new SensorEventListener() {
         @Override
@@ -198,6 +211,8 @@ public class MainActivity extends AppCompatActivity {
 
             time_text.setText(current_time + "ms");
 
+            vOrientation = orientation.getOrientation();
+
             if (aval != null && mval != null )
             {
                 float R[] = new float[9];
@@ -207,9 +222,9 @@ public class MainActivity extends AppCompatActivity {
                 if (works){
                     float orientation[] = new float[3];
                     SensorManager.getOrientation(R, orientation);
-                    azimuth = orientation[0];
-                    pitch = orientation[1];
-                    roll = orientation[2];
+                    azimuth = vOrientation[0];
+                    pitch = vOrientation[1];
+                    roll = vOrientation[2];
 
                 }
             }
@@ -227,7 +242,8 @@ public class MainActivity extends AppCompatActivity {
             float mtime = (event.timestamp - mstart_time) / 1000000;
             if (sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD) {
                 mag_text.setText("Magnetic(MicroTesla) \n" + "time: " + mtime + "\nx: " + event.values[0] + "\ny: " + event.values[1] + "\nz: " + event.values[2]
-                                + "\nazimuth:" + azimuth + "\n:roll:" + roll + "\n:pitch:" + pitch);
+                                + "\nazimuth:" + String.format("%.2f", Math.toDegrees(vOrientation[0])) + "\n:roll:" +
+                                String.format("%.2f", Math.toDegrees(vOrientation[0])) + "\n:pitch:" +String.format("%.2f", Math.toDegrees(vOrientation[0])));
 
             }
         }
