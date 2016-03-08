@@ -68,7 +68,6 @@ public class MainActivity extends AppCompatActivity {
 
     private float[] vOrientation = new float[3];
 
-    private Orientation orientation;
 
 
     private boolean running = false;
@@ -143,7 +142,6 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        orientation.onResume();
         if (running) {
             mSensorManager.registerListener(aSensorEventListener, mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER), SensorManager.SENSOR_DELAY_FASTEST);
             mSensorManager.registerListener(mSensorEventListener, mSensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD), SensorManager.SENSOR_DELAY_FASTEST);
@@ -156,7 +154,6 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onPause() {
         super.onPause();
-        orientation.onPause();
         mSensorManager.unregisterListener(aSensorEventListener);
         mSensorManager.unregisterListener(mSensorEventListener);
         mSensorManager.unregisterListener(gSensorEventListener);
@@ -168,8 +165,6 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-
-        orientation = new GyroscopeOrientation(this);
 
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
@@ -245,8 +240,6 @@ public class MainActivity extends AppCompatActivity {
             current_time = current_time / 1000000;
 
             time_text.setText(current_time + "ms");
-
-            vOrientation = orientation.getOrientation();
 
             if (aval != null && mval != null )
             {
