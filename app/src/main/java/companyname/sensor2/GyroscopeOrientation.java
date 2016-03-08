@@ -149,7 +149,7 @@ public class GyroscopeOrientation extends Orientation
 		double s1s2 = s1 * s2;
 
 		double w = c1c2 * c3 - s1s2 * s3;
-		double x = c1c2 * s3 + s1s2 * c3;
+		double x = c1c2 * s3 + s1s2 * c3	;
 		double y = s1 * c2 * c3 + c1 * s2 * s3;
 		double z = c1 * s2 * c3 - s1 * c2 * s3;
 
