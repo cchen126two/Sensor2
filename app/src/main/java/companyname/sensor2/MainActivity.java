@@ -57,6 +57,19 @@ public class MainActivity extends AppCompatActivity {
     private float pitch;
     private float roll;
 
+    private static final float NS2S = 1.0f / 1000000000.0f;
+    private final float[] deltaRotationVector = new float[4];
+    private float timestamp;
+    private float rtimestamp;
+    private float[] rotationMatrix = new float[9];
+    private float[] mGravity;
+    private float[] mGeomagnetic;
+    private boolean initializedRotationMatrix;
+
+    private float[] vOrientation = new float[3];
+
+
+
     private boolean running = false;
 
     TextView time_text = null;
@@ -173,16 +186,46 @@ public class MainActivity extends AppCompatActivity {
         float current_time = (System.nanoTime() - time_start);
         current_time = current_time / 1000000;
 
+
+
         time_text.setText(current_time + "ms");
 
         button = (Button) findViewById(R.id.startstop_button);
         button.setText("record");
         mSensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
+
+        initializedRotationMatrix = false;
+
     }
+
+    private float[] matrixMultiplication(float[] a, float[] b)
+    {
+        float[] result = new float[9];
+
+        result[0] = a[0] * b[0] + a[1] * b[3] + a[2] * b[6];
+        result[1] = a[0] * b[1] + a[1] * b[4] + a[2] * b[7];
+        result[2] = a[0] * b[2] + a[1] * b[5] + a[2] * b[8];
+
+        result[3] = a[3] * b[0] + a[4] * b[3] + a[5] * b[6];
+        result[4] = a[3] * b[1] + a[4] * b[4] + a[5] * b[7];
+        result[5] = a[3] * b[2] + a[4] * b[5] + a[5] * b[8];
+
+        result[6] = a[6] * b[0] + a[7] * b[3] + a[8] * b[6];
+        result[7] = a[6] * b[1] + a[7] * b[4] + a[8] * b[7];
+        result[8] = a[6] * b[2] + a[7] * b[5] + a[8] * b[8];
+
+        return result;
+    }
+
     private SensorEventListener mSensorEventListener = new SensorEventListener() {
         @Override
 
         public void onSensorChanged(SensorEvent event) {
+
+            if (event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD)
+                mGeomagnetic = event.values;
+
+
 
             Sensor sensor = event.sensor;
             if (mstart_time == -1)
@@ -207,9 +250,9 @@ public class MainActivity extends AppCompatActivity {
                 if (works){
                     float orientation[] = new float[3];
                     SensorManager.getOrientation(R, orientation);
-                    azimuth = orientation[0];
-                    pitch = orientation[1];
-                    roll = orientation[2];
+                    azimuth = vOrientation[0];
+                    pitch = vOrientation[1];
+                    roll = vOrientation[2];
 
                 }
             }
@@ -227,7 +270,7 @@ public class MainActivity extends AppCompatActivity {
             float mtime = (event.timestamp - mstart_time) / 1000000;
             if (sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD) {
                 mag_text.setText("Magnetic(MicroTesla) \n" + "time: " + mtime + "\nx: " + event.values[0] + "\ny: " + event.values[1] + "\nz: " + event.values[2]
-                                + "\nazimuth:" + azimuth + "\n:roll:" + roll + "\n:pitch:" + pitch);
+                                );
 
             }
         }
@@ -240,6 +283,64 @@ public class MainActivity extends AppCompatActivity {
     private SensorEventListener gSensorEventListener = new SensorEventListener() {
         @Override
         public void onSensorChanged(SensorEvent event) {
+            if(initializedRotationMatrix == false){
+
+                float[] I = new float[9];
+                if(mGravity != null && mGeomagnetic != null){
+                    SensorManager.getRotationMatrix(rotationMatrix, I, mGravity, mGeomagnetic);
+                    initializedRotationMatrix = true;
+                }
+
+            }
+
+            float[] angles = new float[3];
+            if(initializedRotationMatrix && event.sensor.getType() == Sensor.TYPE_GYROSCOPE){
+                if (rtimestamp != 0 ) {
+                    final float dT = (event.timestamp - rtimestamp) * NS2S;
+                    // Axis of the rotation sample, not normalized yet.
+                    float axisX = event.values[0];
+                    float axisY = event.values[1];
+                    float axisZ = event.values[2];
+
+                    // Calculate the angular speed of the sample
+                    float omegaMagnitude = (float) Math.sqrt(axisX*axisX + axisY*axisY + axisZ*axisZ);
+
+                    // Normalize the rotation vector if it's big enough to get the axis
+                    // (that is, EPSILON should represent your maximum allowable margin of error)
+                    if (omegaMagnitude > 0.000000001f) {
+                        axisX /= omegaMagnitude;
+                        axisY /= omegaMagnitude;
+                        axisZ /= omegaMagnitude;
+                    }
+
+                    // Integrate around this axis with the angular speed by the timestep
+                    // in order to get a delta rotation from this sample over the timestep
+                    // We will convert this axis-angle representation of the delta rotation
+                    // into a quaternion before turning it into the rotation matrix.
+                    float thetaOverTwo = omegaMagnitude * dT / 2.0f;
+                    float sinThetaOverTwo = (float) Math.sin(thetaOverTwo);
+                    float cosThetaOverTwo = (float) Math.cos(thetaOverTwo);
+                    deltaRotationVector[0] = sinThetaOverTwo * axisX;
+                    deltaRotationVector[1] = sinThetaOverTwo * axisY;
+                    deltaRotationVector[2] = sinThetaOverTwo * axisZ;
+                    deltaRotationVector[3] = cosThetaOverTwo;
+                }
+                rtimestamp = event.timestamp;
+                float[] deltaRotationMatrix = new float[9];
+                SensorManager.getRotationMatrixFromVector(deltaRotationMatrix, deltaRotationVector);
+
+                float[] angleChanges = new float[3];
+                SensorManager.getOrientation(deltaRotationMatrix,angleChanges);
+
+                rotationMatrix = matrixMultiplication(rotationMatrix,deltaRotationMatrix);
+
+                SensorManager.getOrientation(rotationMatrix,angles);
+
+
+                // User code should concatenate the delta rotation we computed with the current rotation
+                // in order to get the updated rotation.
+                // rotationCurrent = rotationCurrent * deltaRotationMatrix;
+            }
             Sensor sensor = event.sensor;
             if (gstart_time == -1)
                 gstart_time = event.timestamp;
@@ -264,7 +365,9 @@ public class MainActivity extends AppCompatActivity {
             }
             float gtime = (event.timestamp - gstart_time) / 1000000;
             if (sensor.getType() == Sensor.TYPE_GYROSCOPE) {
-                gyro_text.setText("Gyroscope (rad/s) \n" + "time: " + gtime + "\nx: " + event.values[0] + "\ny: " + event.values[1] + "\nz: " + event.values[2]);
+                gyro_text.setText("Gyroscope (rad/s) \n" + "time: " + gtime + "\nx: " + event.values[0] + "\ny: " + event.values[1] + "\nz: " + event.values[2]
+                        + "\nazimuth:" + String.format("%.2f", Math.toDegrees(angles[0])) + "\n:roll:" +
+                        String.format("%.2f", Math.toDegrees(angles[2])) + "\n:pitch:" +String.format("%.2f", Math.toDegrees(angles[1])));
 
             }
         }
@@ -411,7 +514,7 @@ public class MainActivity extends AppCompatActivity {
             float atime = (event.timestamp - astart_time) / 1000000;
             if (sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
                 accel_text.setText("Accelerometer (m/s^2) \n" + "time: " + atime + "\nx: " + event.values[0] + "\ny: " + event.values[1] + "\nz: " + event.values[2]);
-
+                mGravity = event.values;
             }
         }
 
