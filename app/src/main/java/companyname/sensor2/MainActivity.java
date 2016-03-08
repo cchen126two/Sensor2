@@ -65,18 +65,15 @@ public class MainActivity extends AppCompatActivity {
     private float[] mGravity;
     private float[] mGeomagnetic;
     private boolean initializedRotationMatrix;
+    private float[] angleOffset = new float[3];
 
-    private float[] vOrientation = new float[3];
 
 
 
     private boolean running = false;
 
     TextView time_text = null;
-    TextView accel_text = null;
-    TextView mag_text = null;
     TextView gyro_text = null;
-    TextView light_text = null;
     EditText log_name = null;
     TextView step_text = null;
     Button button = null;
@@ -175,10 +172,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
         time_start = System.nanoTime();
-        accel_text = (TextView) findViewById(R.id.accel_text);
-        mag_text = (TextView) findViewById(R.id.mag_text);
         gyro_text = (TextView) findViewById(R.id.gyro_text);
-        light_text = (TextView) findViewById(R.id.light_text);
         time_text = (TextView) findViewById(R.id.time_text);
         log_name = (EditText) findViewById(R.id.log_name);
         step_text = (TextView) findViewById(R.id.step_text);
@@ -250,9 +244,7 @@ public class MainActivity extends AppCompatActivity {
                 if (works){
                     float orientation[] = new float[3];
                     SensorManager.getOrientation(R, orientation);
-                    azimuth = vOrientation[0];
-                    pitch = vOrientation[1];
-                    roll = vOrientation[2];
+
 
                 }
             }
@@ -268,11 +260,7 @@ public class MainActivity extends AppCompatActivity {
                 Log.e("sensortest", "fail to write");
             }
             float mtime = (event.timestamp - mstart_time) / 1000000;
-            if (sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD) {
-                mag_text.setText("Magnetic(MicroTesla) \n" + "time: " + mtime + "\nx: " + event.values[0] + "\ny: " + event.values[1] + "\nz: " + event.values[2]
-                                );
 
-            }
         }
 
         @Override
@@ -289,6 +277,11 @@ public class MainActivity extends AppCompatActivity {
                 if(mGravity != null && mGeomagnetic != null){
                     SensorManager.getRotationMatrix(rotationMatrix, I, mGravity, mGeomagnetic);
                     initializedRotationMatrix = true;
+                    // initialise gyroMatrix with identity matrix
+                    rotationMatrix[0] = 1.0f; rotationMatrix[1] = 0.0f; rotationMatrix[2] = 0.0f;
+                    rotationMatrix[3] = 0.0f; rotationMatrix[4] = 1.0f; rotationMatrix[5] = 0.0f;
+                    rotationMatrix[6] = 0.0f; rotationMatrix[7] = 0.0f; rotationMatrix[8] = 1.0f;
+                    SensorManager.getOrientation(rotationMatrix,angleOffset);
                 }
 
             }
@@ -335,6 +328,10 @@ public class MainActivity extends AppCompatActivity {
                 rotationMatrix = matrixMultiplication(rotationMatrix,deltaRotationMatrix);
 
                 SensorManager.getOrientation(rotationMatrix,angles);
+//
+//                for(int i = 0; i < 3; i++){
+//                    angles[i] -= angleOffset[i];
+//                }
 
 
                 // User code should concatenate the delta rotation we computed with the current rotation
@@ -365,9 +362,7 @@ public class MainActivity extends AppCompatActivity {
             }
             float gtime = (event.timestamp - gstart_time) / 1000000;
             if (sensor.getType() == Sensor.TYPE_GYROSCOPE) {
-                gyro_text.setText("Gyroscope (rad/s) \n" + "time: " + gtime + "\nx: " + event.values[0] + "\ny: " + event.values[1] + "\nz: " + event.values[2]
-                        + "\nazimuth:" + String.format("%.2f", Math.toDegrees(angles[0])) + "\n:roll:" +
-                        String.format("%.2f", Math.toDegrees(angles[2])) + "\n:pitch:" +String.format("%.2f", Math.toDegrees(angles[1])));
+                gyro_text.setText("angles:" + String.format("%.2f", Math.toDegrees(angles[0])));
 
             }
         }
@@ -401,10 +396,6 @@ public class MainActivity extends AppCompatActivity {
                 Log.e("sensortest", "fail to write");
             }
             float ltime = (event.timestamp - lstart_time) / 1000000;
-            if (sensor.getType() == Sensor.TYPE_LIGHT) {
-                light_text.setText("Light(lux units) \n" + "time: " + ltime + "\n" + event.values[0]);
-
-            }
 
         }
 
@@ -493,7 +484,7 @@ public class MainActivity extends AppCompatActivity {
             }
 
             amag_std_dev = (float) Math.sqrt(amag_std_sample);
-            step_text.setText("mean:\n" + amag_mean_curr + "\nvariance\n" + (amag_std_sample) + "\nstd dev\n" + amag_std_dev + "\nsteps: " + steps);
+            step_text.setText("Steps: " + steps + "\nDistance: " + steps * 0.79 + " meters");
 
 
 
@@ -513,7 +504,7 @@ public class MainActivity extends AppCompatActivity {
             }
             float atime = (event.timestamp - astart_time) / 1000000;
             if (sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
-                accel_text.setText("Accelerometer (m/s^2) \n" + "time: " + atime + "\nx: " + event.values[0] + "\ny: " + event.values[1] + "\nz: " + event.values[2]);
+
                 mGravity = event.values;
             }
         }
