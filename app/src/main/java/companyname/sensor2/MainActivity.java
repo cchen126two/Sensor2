@@ -71,7 +71,9 @@ public class MainActivity extends AppCompatActivity {
     private float beginAngle = 0;
     private float angleChange = 0;
     private double angleDeg = 0;
-
+    private float[] compassValues = new float[3];
+    private float compassBearing;
+    private int trueCompass = 90;
 
 
     private boolean running = false;
@@ -86,6 +88,20 @@ public class MainActivity extends AppCompatActivity {
     public File mFile;
     boolean created;
 
+
+    public void plus90(View view){
+        trueCompass += 90;
+        if(trueCompass > 360){
+            trueCompass -= 360;
+        }
+    }
+
+    public void minus90(View view){
+        trueCompass -= 90;
+        if(trueCompass < 0){
+            trueCompass = 360 + trueCompass;
+        }
+    }
     public void startstop(View view) {
         if (running == false) {
 
@@ -93,6 +109,8 @@ public class MainActivity extends AppCompatActivity {
                 long timestamp = System.currentTimeMillis();
                 SimpleDateFormat sdf = new SimpleDateFormat("MMM dd,yyyy HH:mm:ss");
                 Date mdate = new Date(timestamp);
+
+                Log.d("path",this.getExternalFilesDir(null).toString());
 
                 mFile = new File(this.getExternalFilesDir(null), log_name.getText() + "-" + sdf.format(mdate) + ".csv");
                 created = mFile.createNewFile();
@@ -190,6 +208,12 @@ public class MainActivity extends AppCompatActivity {
 
         button = (Button) findViewById(R.id.startstop_button);
         button.setText("record");
+
+        Button plusButton = (Button) findViewById(R.id.plus_90);
+        plusButton.setText("RIGHT TURN");
+
+        Button minusButton = (Button) findViewById(R.id.minus_90);
+        minusButton.setText("LEFT TURN");
         mSensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
 
         initializedRotationMatrix = false;
@@ -222,6 +246,17 @@ public class MainActivity extends AppCompatActivity {
 
             if (event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD)
                 mGeomagnetic = event.values;
+
+            float[] R1 = new float[9];
+            float[] I1 = new float[9];
+            if(mGravity != null && mGeomagnetic != null){
+                boolean success =  SensorManager.getRotationMatrix(R1, I1, mGravity, mGeomagnetic);
+                if(success){
+                    SensorManager.getOrientation(R1,compassValues);
+                    compassBearing = (float)((Math.toDegrees(compassValues[0]) + 360) % 360);
+                }
+
+            }
 
 
 
@@ -256,7 +291,8 @@ public class MainActivity extends AppCompatActivity {
             try {
                 if (mBufferedWriter != null) {
                     mBufferedWriter.write(current_time + ", " + aval[0] + ", " + aval[1] + ", " + aval[2] + ", " + gval[0] + ", " + gval[1] + ", " + gval[2] +
-                            ", " + mval[0] + ", " + mval[1] + ", " + mval[2] + ", " + lval + "\n");
+                            ", " + mval[0] + ", " + mval[1] + ", " + mval[2] + ", " + lval + ", " + curAngle + ", " +
+                            compassBearing + "," + trueCompass + "\n");
 
 
                 }
@@ -305,7 +341,7 @@ public class MainActivity extends AppCompatActivity {
 
             float[] angles = new float[3];
 
-
+            double angleDiff = 0;
             if(initializedRotationMatrix && event.sensor.getType() == Sensor.TYPE_GYROSCOPE){
                 if (rtimestamp != 0 ) {
                     final float dT = (event.timestamp - rtimestamp) * NS2S;
@@ -346,6 +382,8 @@ public class MainActivity extends AppCompatActivity {
                 float[] angleChanges = new float[3];
                 SensorManager.getOrientation(deltaRotationMatrix,angleChanges);
 
+                angleDiff += angleChanges[0];
+
 //                cumAngle += angleChanges[0];
 
 //                if(cumAngle > 0.523f || cumAngle < -0.523f){
@@ -372,6 +410,8 @@ public class MainActivity extends AppCompatActivity {
 
                         curAngle += angleChange;
                     }
+
+                    //angleDiff = (Math.toDegrees(angleDiff) + 360) % 360;
                    // resetRotationMatrix(curAngle,0,0);
                     beginAngle = (float)angleDeg;
                 }
@@ -402,8 +442,8 @@ public class MainActivity extends AppCompatActivity {
             try {
                 if (mBufferedWriter != null) {
                     mBufferedWriter.write(current_time + ", " + aval[0] + ", " + aval[1] + ", " + aval[2] + ", " + gval[0] + ", " + gval[1] + ", " + gval[2] +
-                            ", " + mval[0] + ", " + mval[1] + ", " + mval[2] + ", " + lval + "\n");
-
+                            ", " + mval[0] + ", " + mval[1] + ", " + mval[2] + ", " + lval + ", " + curAngle + ", " +
+                            compassBearing + "," + trueCompass + "\n");
 
                 }
             } catch (IOException e) {
@@ -411,9 +451,11 @@ public class MainActivity extends AppCompatActivity {
             }
             float gtime = (event.timestamp - gstart_time) / 1000000;
             if (sensor.getType() == Sensor.TYPE_GYROSCOPE) {
-                gyro_text.setText("angles:" + curAngle
-                +"\nangle change: " + angleChange
-                +"\ncurAngle: " + angleDeg);
+                gyro_text.setText("angles:" + curAngle +
+                        "\ncompass bearing: " + compassBearing
+                      + "\nTrue Angle: " + trueCompass);
+
+
 
             }
         }
@@ -439,9 +481,8 @@ public class MainActivity extends AppCompatActivity {
             try {
                 if (mBufferedWriter != null) {
                     mBufferedWriter.write(current_time + ", " + aval[0] + ", " + aval[1] + ", " + aval[2] + ", " + gval[0] + ", " + gval[1] + ", " + gval[2] +
-                            ", " + mval[0] + ", " + mval[1] + ", " + mval[2] + ", " + lval + "\n");
-
-
+                            ", " + mval[0] + ", " + mval[1] + ", " + mval[2] + ", " + lval + ", " + curAngle + ", " +
+                            compassBearing + "," + trueCompass + "\n");
                 }
             } catch (IOException e) {
                //Log.e("sensortest", "fail to write");
@@ -504,7 +545,7 @@ public class MainActivity extends AppCompatActivity {
                 if (amag_std_sample >= 1)
                 {
                     for (int i = 0; i < samplenumber; i++){
-                        if (amag_peaks[i] > (amag_mean_curr + (2* amag_std_dev)) || amag_peaks[i] < (amag_mean_curr - (2*amag_std_dev)))
+                        if (amag_peaks[i] > (amag_mean_curr + (2* amag_std_dev)) || amag_peaks[i] < (amag_mean_curr - (2 * amag_std_dev)))
                         {
                             //Log.e("hit", "peak: " + amag_peaks[i] + " mean: " + amag_mean_curr + " std_dev: " + amag_std_dev );
                             steps++;
@@ -546,8 +587,8 @@ public class MainActivity extends AppCompatActivity {
             try {
                 if (mBufferedWriter != null) {
                     mBufferedWriter.write(current_time + ", " + aval[0] + ", " + aval[1] + ", " + aval[2] + ", " + gval[0] + ", " + gval[1] + ", " + gval[2] +
-                            ", " + mval[0] + ", " + mval[1] + ", " + mval[2] + ", " + lval + "\n");
-
+                            ", " + mval[0] + ", " + mval[1] + ", " + mval[2] + ", " + lval + ", " + curAngle + ", " +
+                            compassBearing + "," + trueCompass + "\n");
 
                 }
             } catch (IOException e) {
