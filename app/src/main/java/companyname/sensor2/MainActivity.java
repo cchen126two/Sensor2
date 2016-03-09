@@ -66,7 +66,11 @@ public class MainActivity extends AppCompatActivity {
     private float[] mGeomagnetic;
     private boolean initializedRotationMatrix;
     private float[] angleOffset = new float[3];
-
+    private float curAngle = 0;
+    private float timeDiff = 0;
+    private float beginAngle = 0;
+    private float angleChange = 0;
+    private double angleDeg = 0;
 
 
 
@@ -268,6 +272,19 @@ public class MainActivity extends AppCompatActivity {
 
         }
     };
+
+    private void resetRotationMatrix(float x, float y, float z){
+        float[] XMatrix = {1f,0f,0f,
+                           0f, (float)Math.cos(x), -(float)Math.sin(x),
+                           0f, (float)Math.sin(x), (float)Math.cos(x) };
+        float[] YMatrix = {(float)Math.cos(y),0f,(float)Math.sin(y),
+                           0f, 1f, 0f,
+                           -(float)Math.sin(y), 0, (float)Math.cos(y) };
+        float[] ZMatrix = {(float)Math.cos(z), -(float)Math.sin(z),0f,
+                           (float)Math.sin(z), (float)Math.cos(z) ,0f,
+                           0f,0f,1f };
+        rotationMatrix = matrixMultiplication(matrixMultiplication(ZMatrix,YMatrix),XMatrix);
+    }
     private SensorEventListener gSensorEventListener = new SensorEventListener() {
         @Override
         public void onSensorChanged(SensorEvent event) {
@@ -281,15 +298,19 @@ public class MainActivity extends AppCompatActivity {
                     rotationMatrix[0] = 1.0f; rotationMatrix[1] = 0.0f; rotationMatrix[2] = 0.0f;
                     rotationMatrix[3] = 0.0f; rotationMatrix[4] = 1.0f; rotationMatrix[5] = 0.0f;
                     rotationMatrix[6] = 0.0f; rotationMatrix[7] = 0.0f; rotationMatrix[8] = 1.0f;
-                    SensorManager.getOrientation(rotationMatrix,angleOffset);
+                  //  SensorManager.getOrientation(rotationMatrix,angleOffset);
                 }
 
             }
 
             float[] angles = new float[3];
+
+
             if(initializedRotationMatrix && event.sensor.getType() == Sensor.TYPE_GYROSCOPE){
                 if (rtimestamp != 0 ) {
                     final float dT = (event.timestamp - rtimestamp) * NS2S;
+                    timeDiff += dT;
+
                     // Axis of the rotation sample, not normalized yet.
                     float axisX = event.values[0];
                     float axisY = event.values[1];
@@ -325,9 +346,37 @@ public class MainActivity extends AppCompatActivity {
                 float[] angleChanges = new float[3];
                 SensorManager.getOrientation(deltaRotationMatrix,angleChanges);
 
+//                cumAngle += angleChanges[0];
+
+//                if(cumAngle > 0.523f || cumAngle < -0.523f){
+//                    curAngle += cumAngle;
+//                }
+
+
+
+
+               // Log.d("Turns", "Time = " + timeDiff + " angleChange = " + String.format("%.2f", Math.toDegrees(angleChanges[0])));
                 rotationMatrix = matrixMultiplication(rotationMatrix,deltaRotationMatrix);
 
                 SensorManager.getOrientation(rotationMatrix,angles);
+
+                angleDeg = (Math.toDegrees(angles[0]) + 360) % 360;
+
+                if(timeDiff > 1.0f){
+                    timeDiff = 0;
+                    angleChange = (float)Math.abs(angleDeg - beginAngle);
+                    if(angleChange > 180){
+                        angleChange = 360 - angleChange;
+                    }
+                    if(angleChange >  30 ){
+
+                        curAngle += angleChange;
+                    }
+                   // resetRotationMatrix(curAngle,0,0);
+                    beginAngle = (float)angleDeg;
+                }
+
+
 //
 //                for(int i = 0; i < 3; i++){
 //                    angles[i] -= angleOffset[i];
@@ -358,11 +407,13 @@ public class MainActivity extends AppCompatActivity {
 
                 }
             } catch (IOException e) {
-                Log.e("sensortest", "fail to write");
+               // Log.e("sensortest", "fail to write");
             }
             float gtime = (event.timestamp - gstart_time) / 1000000;
             if (sensor.getType() == Sensor.TYPE_GYROSCOPE) {
-                gyro_text.setText("angles:" + String.format("%.2f", Math.toDegrees(angles[0])));
+                gyro_text.setText("angles:" + curAngle
+                +"\nangle change: " + angleChange
+                +"\ncurAngle: " + angleDeg);
 
             }
         }
@@ -393,7 +444,7 @@ public class MainActivity extends AppCompatActivity {
 
                 }
             } catch (IOException e) {
-                Log.e("sensortest", "fail to write");
+               //Log.e("sensortest", "fail to write");
             }
             float ltime = (event.timestamp - lstart_time) / 1000000;
 
@@ -429,7 +480,7 @@ public class MainActivity extends AppCompatActivity {
                 if (sample != 0) {
 
                     if (Math.abs(amag_val_tenative_peak - amag_peaks[sample -1])  > 0.1) {
-                        Log.e("hit",sample + " " + amag_val_tenative_peak + " " + amag_peaks[sample -1]);
+                      //  Log.e("hit",sample + " " + amag_val_tenative_peak + " " + amag_peaks[sample -1]);
                         amag_peaks[sample] = amag_val_tenative_peak;
                         sample++;
                     }
@@ -455,7 +506,7 @@ public class MainActivity extends AppCompatActivity {
                     for (int i = 0; i < samplenumber; i++){
                         if (amag_peaks[i] > (amag_mean_curr + (2* amag_std_dev)) || amag_peaks[i] < (amag_mean_curr - (2*amag_std_dev)))
                         {
-                            Log.e("hit", "peak: " + amag_peaks[i] + " mean: " + amag_mean_curr + " std_dev: " + amag_std_dev );
+                            //Log.e("hit", "peak: " + amag_peaks[i] + " mean: " + amag_mean_curr + " std_dev: " + amag_std_dev );
                             steps++;
                         }
                     }
@@ -500,7 +551,7 @@ public class MainActivity extends AppCompatActivity {
 
                 }
             } catch (IOException e) {
-                Log.e("sensortest", "fail to write");
+               // Log.e("sensortest", "fail to write");
             }
             float atime = (event.timestamp - astart_time) / 1000000;
             if (sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
