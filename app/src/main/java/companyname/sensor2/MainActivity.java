@@ -27,6 +27,7 @@ import java.util.Date;
 
 public class MainActivity extends AppCompatActivity {
     private int samplenumber = 3;
+    private int steps2 = 0;
     private int sample = 0;
     private float threshold = (float) 0.92;
     private SensorManager mSensorManager;
@@ -75,8 +76,11 @@ public class MainActivity extends AppCompatActivity {
     private float compassBearing;
     private int trueCompass = 90;
 
+    private float max_var = 2.5f;
+    private float min_var = 0.2f;
 
     private boolean running = false;
+    private boolean peak_checking;
 
     TextView time_text = null;
     TextView gyro_text = null;
@@ -124,6 +128,8 @@ public class MainActivity extends AppCompatActivity {
 
             }
             running = true;
+            peak_checking = false;
+            steps2 = 0;
             time_start = System.nanoTime();
 
             mSensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
@@ -514,7 +520,16 @@ public class MainActivity extends AppCompatActivity {
             amag_val_old = amag_val_curr;
             amag_val_curr = (float) Math.sqrt( Math.pow((float)aval[0],2) + Math.pow((float)aval[1], 2) + Math.pow((float)aval[2], 2));
 
+            if (amag_std_sample > max_var && peak_checking == false)
+            {
+                peak_checking = true;
 
+            }
+            if (amag_std_sample <= min_var  && peak_checking)
+            {
+                steps2++;
+                peak_checking = false;
+            }
 
             if (amag_val_tenative_peak > amag_val_curr) {
                 //Log.e("Hit2", amag_val_tenative_peak + "> " + amag_val_curr);
@@ -576,7 +591,7 @@ public class MainActivity extends AppCompatActivity {
             }
 
             amag_std_dev = (float) Math.sqrt(amag_std_sample);
-            step_text.setText("Steps: " + steps + "\nDistance: " + steps * 0.79 + " meters");
+            step_text.setText("Steps: " + steps2 + "\nDistance: " + steps2 * 0.79 + " meters");
 
 
 
